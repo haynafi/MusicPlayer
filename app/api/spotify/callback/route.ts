@@ -1,13 +1,12 @@
+// app/api/spotify/callback/route.ts
 import { type NextRequest, NextResponse } from "next/server"
-import { cookies } from "next/headers"
 
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams
   const code = searchParams.get("code")
-  const state = searchParams.get("state")
 
   if (!code) {
-    return NextResponse.redirect(new URL(`/login?error=missing_code`, request.url))
+    return NextResponse.redirect(new URL(`/login`, request.url))
   }
 
   try {
@@ -29,28 +28,16 @@ export async function GET(request: NextRequest) {
     const tokenData = await tokenResponse.json()
 
     if (tokenData.error) {
-      return NextResponse.redirect(new URL(`/login?error=${tokenData.error}`, request.url))
+      return NextResponse.redirect(new URL(`/login`, request.url))
     }
 
-    // Create a response that redirects to the home page
-    const response = NextResponse.redirect(new URL("/", request.url))
-    
-    // Set cookies with the tokens
-    response.cookies.set("spotify_access_token", tokenData.access_token, {
-      httpOnly: false, // Allow JavaScript access
-      maxAge: tokenData.expires_in,
-      path: "/",
-    })
-    
-    response.cookies.set("spotify_refresh_token", tokenData.refresh_token, {
-      httpOnly: false, // Allow JavaScript access
-      maxAge: 30 * 24 * 60 * 60, // 30 days
-      path: "/",
-    })
-
-    return response
+    // Redirect to the frontend with the tokens in URL parameters
+    // This is not ideal for security but simplifies the implementation
+    return NextResponse.redirect(
+      new URL(`/?access_token=${tokenData.access_token}&refresh_token=${tokenData.refresh_token}`, request.url),
+    )
   } catch (error) {
     console.error("Error exchanging code for token:", error)
-    return NextResponse.redirect(new URL(`/login?error=token_exchange_failed`, request.url))
+    return NextResponse.redirect(new URL(`/login`, request.url))
   }
 }
