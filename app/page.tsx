@@ -8,7 +8,6 @@ import { useSpotify } from "@/context/spotify-context"
 import { SearchResults } from "@/components/search-results"
 import { MiniPlayer } from "@/components/mini-player"
 import { RecentlyPlayed } from "@/components/recently-played"
-import { SpotifyPlayer } from "@/components/spotify-player" // Import the new SpotifyPlayer component
 
 export default function Home() {
   const router = useRouter()
@@ -101,9 +100,6 @@ export default function Home() {
 
   return (
     <div className="flex h-screen bg-gray-200">
-      {/* Add the SpotifyPlayer component (invisible but functional) */}
-      <SpotifyPlayer />
-      
       {/* Sidebar */}
       <div className="w-20 bg-gray-200 border-r border-gray-300 flex flex-col items-center py-6 space-y-10">
         <div className="w-8 h-8">

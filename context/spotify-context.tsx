@@ -24,7 +24,6 @@ type SpotifyContextType = {
   recentTracks: any[]
   currentTrack: any
   isPlaying: boolean
-  deviceId: string | null
   login: () => void
   logout: () => void
   fetchUserData: () => Promise<void>
@@ -47,13 +46,9 @@ export function SpotifyProvider({ children }: { children: ReactNode }) {
   const [recentTracks, setRecentTracks] = useState<any[]>([])
   const [currentTrack, setCurrentTrack] = useState<any>(null)
   const [isPlaying, setIsPlaying] = useState(false)
-  const [deviceId, setDeviceId] = useState<string | null>(null)
 
   // Check if user is authenticated on mount
   useEffect(() => {
-    // Skip during server-side rendering
-    if (typeof window === 'undefined') return;
-    
     const checkAuth = async () => {
       const accessToken = localStorage.getItem("spotify_access_token")
 
@@ -77,94 +72,52 @@ export function SpotifyProvider({ children }: { children: ReactNode }) {
         const code = urlParams.get("code")
         const state = urlParams.get("state")
         const storedState = localStorage.getItem("spotify_auth_state")
-        
-        // Also check for access token in URL (from our callback redirect)
-        const accessToken = urlParams.get("access_token")
-        const refreshToken = urlParams.get("refresh_token")
-
-        if (accessToken && refreshToken) {
-          // Store tokens from URL params
-          localStorage.setItem("spotify_access_token", accessToken)
-          localStorage.setItem("spotify_refresh_token", refreshToken)
-          setIsAuthenticated(true)
-
-          // Remove query parameters from URL
-          window.history.replaceState({}, document.title, window.location.pathname)
-
-          await fetchUserData()
-          setIsLoading(false)
-          return
-        }
 
         if (code && state && state === storedState) {
           try {
-            // Let the callback route handle this
-            // The callback route will redirect with tokens in URL
-            setIsLoading(true)
+            const tokenData = await getAccessToken(code)
+
+            if (tokenData.access_token) {
+              localStorage.setItem("spotify_access_token", tokenData.access_token)
+              localStorage.setItem("spotify_refresh_token", tokenData.refresh_token)
+              setIsAuthenticated(true)
+
+              // Remove query parameters from URL
+              window.history.replaceState({}, document.title, window.location.pathname)
+
+              await fetchUserData()
+            }
           } catch (error) {
             console.error("Error during authentication:", error)
-            setIsLoading(false)
           }
-        } else {
-          setIsLoading(false)
         }
       }
+
+      setIsLoading(false)
     }
 
-    if (typeof window !== "undefined") {
-      if (window.location.search.includes("access_token=")) {
-        handleCallback()
-      } else if (window.location.search.includes("code=")) {
-        // Just keep loading while the callback processes
-        setIsLoading(true)
-      } else {
-        checkAuth()
-      }
+    if (typeof window !== "undefined" && window.location.search.includes("code=")) {
+      handleCallback()
+    } else {
+      checkAuth()
     }
   }, [])
 
-  // Listen for the device ID from the Web Playback SDK
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const checkDeviceId = () => {
-        const deviceId = localStorage.getItem('spotify_device_id')
-        if (deviceId) {
-          setDeviceId(deviceId)
-        }
-      }
-      
-      // Check immediately and then every second for a device ID
-      checkDeviceId()
-      const interval = setInterval(checkDeviceId, 1000)
-      
-      return () => clearInterval(interval)
-    }
-  }, [isAuthenticated])
-
   const login = () => {
-    window.location.href = getAuthUrl();
-  };
+    window.location.href = getAuthUrl()
+  }
 
   const logout = () => {
-    // Clear cookies
-    document.cookie = "spotify_access_token=; Path=/; Expires=Thu, 01 Jan 1970 00:00:01 GMT;";
-    document.cookie = "spotify_refresh_token=; Path=/; Expires=Thu, 01 Jan 1970 00:00:01 GMT;";
-    
-    // Also clear localStorage
-    localStorage.removeItem("spotify_access_token");
-    localStorage.removeItem("spotify_refresh_token");
-    localStorage.removeItem("spotify_device_id");
-    
-    // Reset state
-    setIsAuthenticated(false);
-    setUser(null);
-    setPlaylists([]);
-    setTopTracks([]);
-    setRecentTracks([]);
-    setCurrentTrack(null);
-    setIsPlaying(false);
-    setDeviceId(null);
-  };
+    localStorage.removeItem("spotify_access_token")
+    localStorage.removeItem("spotify_refresh_token")
+    setIsAuthenticated(false)
+    setUser(null)
+    setPlaylists([])
+    setTopTracks([])
+    setRecentTracks([])
+    setCurrentTrack(null)
+    setIsPlaying(false)
+  }
 
   const fetchUserData = async () => {
     try {
@@ -196,12 +149,7 @@ export function SpotifyProvider({ children }: { children: ReactNode }) {
 
   const playSpotifyTrack = async (trackUri: string) => {
     try {
-      if (!deviceId) {
-        console.warn("No device ID available. Make sure the Spotify Web Player is initialized.")
-        return
-      }
-
-      await playTrack(trackUri, deviceId)
+      await playTrack(trackUri)
       setIsPlaying(true)
 
       // Find the track in our lists to set as current
@@ -216,11 +164,6 @@ export function SpotifyProvider({ children }: { children: ReactNode }) {
 
   const pauseSpotifyTrack = async () => {
     try {
-      if (!deviceId) {
-        console.warn("No device ID available. Make sure the Spotify Web Player is initialized.")
-        return
-      }
-
       await pausePlayback()
       setIsPlaying(false)
     } catch (error) {
@@ -230,11 +173,6 @@ export function SpotifyProvider({ children }: { children: ReactNode }) {
 
   const playNextTrack = async () => {
     try {
-      if (!deviceId) {
-        console.warn("No device ID available. Make sure the Spotify Web Player is initialized.")
-        return
-      }
-
       await nextTrack()
       // We would need to poll for the current track to update currentTrack
     } catch (error) {
@@ -244,11 +182,6 @@ export function SpotifyProvider({ children }: { children: ReactNode }) {
 
   const playPreviousTrack = async () => {
     try {
-      if (!deviceId) {
-        console.warn("No device ID available. Make sure the Spotify Web Player is initialized.")
-        return
-      }
-
       await previousTrack()
       // We would need to poll for the current track to update currentTrack
     } catch (error) {
@@ -258,11 +191,6 @@ export function SpotifyProvider({ children }: { children: ReactNode }) {
 
   const playSpotifyAlbum = async (albumUri: string) => {
     try {
-      if (!deviceId) {
-        console.warn("No device ID available. Make sure the Spotify Web Player is initialized.")
-        return
-      }
-
       await spotifyFetch("/me/player/play", {
         method: "PUT",
         headers: {
@@ -270,7 +198,6 @@ export function SpotifyProvider({ children }: { children: ReactNode }) {
         },
         body: JSON.stringify({
           context_uri: albumUri,
-          device_id: deviceId,
         }),
       })
       setIsPlaying(true)
@@ -281,11 +208,6 @@ export function SpotifyProvider({ children }: { children: ReactNode }) {
 
   const playSpotifyArtistTopTracks = async (artistId: string) => {
     try {
-      if (!deviceId) {
-        console.warn("No device ID available. Make sure the Spotify Web Player is initialized.")
-        return
-      }
-
       // Get artist's top tracks
       const topTracks = await spotifyFetch(`/artists/${artistId}/top-tracks?market=from_token`)
 
@@ -297,7 +219,6 @@ export function SpotifyProvider({ children }: { children: ReactNode }) {
           },
           body: JSON.stringify({
             uris: topTracks.tracks.slice(0, 10).map((track: any) => track.uri),
-            device_id: deviceId,
           }),
         })
         setIsPlaying(true)
@@ -317,7 +238,6 @@ export function SpotifyProvider({ children }: { children: ReactNode }) {
     recentTracks,
     currentTrack,
     isPlaying,
-    deviceId,
     login,
     logout,
     fetchUserData,

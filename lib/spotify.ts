@@ -16,7 +16,6 @@ const SCOPES = [
   "user-modify-playback-state",
   "playlist-read-private",
   "playlist-read-collaborative",
-  "streaming", // Add this scope for Web Playback SDK
 ]
 
 // Generate a random string for state parameter
@@ -193,69 +192,30 @@ export const playTrack = async (trackUri: string, deviceId?: string) => {
   return spotifyFetch(endpoint, options)
 }
 
-export const pausePlayback = async (deviceId?: string) => {
-  const endpoint = deviceId ? `/me/player/pause?device_id=${deviceId}` : "/me/player/pause"
-  return spotifyFetch(endpoint, { method: "PUT" })
+export const pausePlayback = async () => {
+  return spotifyFetch("/me/player/pause", { method: "PUT" })
 }
 
-export const nextTrack = async (deviceId?: string) => {
-  const endpoint = deviceId ? `/me/player/next?device_id=${deviceId}` : "/me/player/next"
-  return spotifyFetch(endpoint, { method: "POST" })
+export const nextTrack = async () => {
+  return spotifyFetch("/me/player/next", { method: "POST" })
 }
 
-export const previousTrack = async (deviceId?: string) => {
-  const endpoint = deviceId ? `/me/player/previous?device_id=${deviceId}` : "/me/player/previous"
-  return spotifyFetch(endpoint, { method: "POST" })
+export const previousTrack = async () => {
+  return spotifyFetch("/me/player/previous", { method: "POST" })
 }
 
-export const seekToPosition = async (positionMs: number, deviceId?: string) => {
-  const endpoint = deviceId 
-    ? `/me/player/seek?position_ms=${positionMs}&device_id=${deviceId}` 
-    : `/me/player/seek?position_ms=${positionMs}`
-  return spotifyFetch(endpoint, { method: "PUT" })
+export const seekToPosition = async (positionMs: number) => {
+  return spotifyFetch(`/me/player/seek?position_ms=${positionMs}`, { method: "PUT" })
 }
 
-export const setVolume = async (volumePercent: number, deviceId?: string) => {
-  const endpoint = deviceId 
-    ? `/me/player/volume?volume_percent=${volumePercent}&device_id=${deviceId}` 
-    : `/me/player/volume?volume_percent=${volumePercent}`
-  return spotifyFetch(endpoint, { method: "PUT" })
+export const setVolume = async (volumePercent: number) => {
+  return spotifyFetch(`/me/player/volume?volume_percent=${volumePercent}`, { method: "PUT" })
 }
 
-export const toggleShuffle = async (state: boolean, deviceId?: string) => {
-  const endpoint = deviceId 
-    ? `/me/player/shuffle?state=${state}&device_id=${deviceId}` 
-    : `/me/player/shuffle?state=${state}`
-  return spotifyFetch(endpoint, { method: "PUT" })
+export const toggleShuffle = async (state: boolean) => {
+  return spotifyFetch(`/me/player/shuffle?state=${state}`, { method: "PUT" })
 }
 
-export const setRepeatMode = async (state: "track" | "context" | "off", deviceId?: string) => {
-  const endpoint = deviceId 
-    ? `/me/player/repeat?state=${state}&device_id=${deviceId}` 
-    : `/me/player/repeat?state=${state}`
-  return spotifyFetch(endpoint, { method: "PUT" })
-}
-
-// Get the current playback state
-export const getPlaybackState = async () => {
-  return spotifyFetch('/me/player')
-}
-
-// Transfer playback to another device
-export const transferPlayback = async (deviceId: string, play: boolean = false) => {
-  return spotifyFetch('/me/player', {
-    method: 'PUT',
-    headers: {
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({
-      device_ids: [deviceId],
-      play
-    })
-  })
-}
-
-// Get available devices
-export const getAvailableDevices = async () => {
-  return spotifyFetch('/me/player/devices')
+export const setRepeatMode = async (state: "track" | "context" | "off") => {
+  return spotifyFetch(`/me/player/repeat?state=${state}`, { method: "PUT" })
 }
