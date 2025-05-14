@@ -4,10 +4,13 @@ import { useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { useSpotify } from "@/context/spotify-context"
 import { Button } from "@/components/ui/button"
+import { Alert, AlertDescription } from "@/components/ui/alert"
 
 export default function LoginPage() {
   const { isAuthenticated, isLoading, login } = useSpotify()
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const error = searchParams.get('error')
 
   useEffect(() => {
     if (isAuthenticated && !isLoading) {
@@ -22,10 +25,17 @@ export default function LoginPage() {
           MUSIC2D
         </h1>
 
+        {error && (
+          <Alert variant="destructive" className="mb-4">
+            <AlertDescription>
+              Authentication error: {error.replace(/_/g, ' ')}
+            </AlertDescription>
+          </Alert>
+        )}
+
         <p className="mb-8 text-center text-gray-700">
           Connect with your Spotify account to access your music library and playlists.
         </p>
-
         <Button
           onClick={login}
           className="w-full py-3 bg-black hover:bg-gray-800 text-white rounded-full"

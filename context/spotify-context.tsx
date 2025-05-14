@@ -50,74 +50,51 @@ export function SpotifyProvider({ children }: { children: ReactNode }) {
   // Check if user is authenticated on mount
   useEffect(() => {
     const checkAuth = async () => {
-      const accessToken = localStorage.getItem("spotify_access_token")
+      // Check for token in cookies
+      const accessToken = document.cookie
+        .split("; ")
+        .find(row => row.startsWith("spotify_access_token="))
+        ?.split("=")[1];
 
       if (accessToken) {
-        setIsAuthenticated(true)
+        localStorage.setItem("spotify_access_token", accessToken); // Keep this for compatibility
+        setIsAuthenticated(true);
         try {
-          await fetchUserData()
+          await fetchUserData();
         } catch (error) {
-          console.error("Error fetching user data:", error)
-          logout()
+          console.error("Error fetching user data:", error);
+          logout();
         }
       }
 
-      setIsLoading(false)
-    }
+      setIsLoading(false);
+    };
 
-    // Handle authentication callback
-    const handleCallback = async () => {
-      if (typeof window !== "undefined") {
-        const urlParams = new URLSearchParams(window.location.search)
-        const code = urlParams.get("code")
-        const state = urlParams.get("state")
-        const storedState = localStorage.getItem("spotify_auth_state")
-
-        if (code && state && state === storedState) {
-          try {
-            const tokenData = await getAccessToken(code)
-
-            if (tokenData.access_token) {
-              localStorage.setItem("spotify_access_token", tokenData.access_token)
-              localStorage.setItem("spotify_refresh_token", tokenData.refresh_token)
-              setIsAuthenticated(true)
-
-              // Remove query parameters from URL
-              window.history.replaceState({}, document.title, window.location.pathname)
-
-              await fetchUserData()
-            }
-          } catch (error) {
-            console.error("Error during authentication:", error)
-          }
-        }
-      }
-
-      setIsLoading(false)
-    }
-
-    if (typeof window !== "undefined" && window.location.search.includes("code=")) {
-      handleCallback()
-    } else {
-      checkAuth()
-    }
-  }, [])
+    checkAuth();
+  }, []);
 
   const login = () => {
-    window.location.href = getAuthUrl()
-  }
+    window.location.href = getAuthUrl();
+  };
 
   const logout = () => {
-    localStorage.removeItem("spotify_access_token")
-    localStorage.removeItem("spotify_refresh_token")
-    setIsAuthenticated(false)
-    setUser(null)
-    setPlaylists([])
-    setTopTracks([])
-    setRecentTracks([])
-    setCurrentTrack(null)
-    setIsPlaying(false)
-  }
+    // Clear cookies
+    document.cookie = "spotify_access_token=; Path=/; Expires=Thu, 01 Jan 1970 00:00:01 GMT;";
+    document.cookie = "spotify_refresh_token=; Path=/; Expires=Thu, 01 Jan 1970 00:00:01 GMT;";
+    
+    // Also clear localStorage
+    localStorage.removeItem("spotify_access_token");
+    localStorage.removeItem("spotify_refresh_token");
+    
+    // Reset state
+    setIsAuthenticated(false);
+    setUser(null);
+    setPlaylists([]);
+    setTopTracks([]);
+    setRecentTracks([]);
+    setCurrentTrack(null);
+    setIsPlaying(false);
+  };
 
   const fetchUserData = async () => {
     try {
