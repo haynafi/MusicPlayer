@@ -24,6 +24,7 @@ type SpotifyContextType = {
   recentTracks: any[]
   currentTrack: any
   isPlaying: boolean
+  deviceId: string | null
   login: () => void
   logout: () => void
   fetchUserData: () => Promise<void>
@@ -46,6 +47,7 @@ export function SpotifyProvider({ children }: { children: ReactNode }) {
   const [recentTracks, setRecentTracks] = useState<any[]>([])
   const [currentTrack, setCurrentTrack] = useState<any>(null)
   const [isPlaying, setIsPlaying] = useState(false)
+  const [deviceId, setDeviceId] = useState<string | null>(null)
 
   // Check if user is authenticated on mount
   useEffect(() => {
@@ -121,6 +123,24 @@ export function SpotifyProvider({ children }: { children: ReactNode }) {
     }
   }, [])
 
+  // Listen for the device ID from the Web Playback SDK
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const checkDeviceId = () => {
+        const deviceId = localStorage.getItem('spotify_device_id')
+        if (deviceId) {
+          setDeviceId(deviceId)
+        }
+      }
+      
+      // Check immediately and then every second for a device ID
+      checkDeviceId()
+      const interval = setInterval(checkDeviceId, 1000)
+      
+      return () => clearInterval(interval)
+    }
+  }, [isAuthenticated])
+
   const login = () => {
     window.location.href = getAuthUrl();
   };
@@ -133,6 +153,7 @@ export function SpotifyProvider({ children }: { children: ReactNode }) {
     // Also clear localStorage
     localStorage.removeItem("spotify_access_token");
     localStorage.removeItem("spotify_refresh_token");
+    localStorage.removeItem("spotify_device_id");
     
     // Reset state
     setIsAuthenticated(false);
@@ -142,6 +163,7 @@ export function SpotifyProvider({ children }: { children: ReactNode }) {
     setRecentTracks([]);
     setCurrentTrack(null);
     setIsPlaying(false);
+    setDeviceId(null);
   };
 
   const fetchUserData = async () => {
@@ -174,7 +196,12 @@ export function SpotifyProvider({ children }: { children: ReactNode }) {
 
   const playSpotifyTrack = async (trackUri: string) => {
     try {
-      await playTrack(trackUri)
+      if (!deviceId) {
+        console.warn("No device ID available. Make sure the Spotify Web Player is initialized.")
+        return
+      }
+
+      await playTrack(trackUri, deviceId)
       setIsPlaying(true)
 
       // Find the track in our lists to set as current
@@ -189,6 +216,11 @@ export function SpotifyProvider({ children }: { children: ReactNode }) {
 
   const pauseSpotifyTrack = async () => {
     try {
+      if (!deviceId) {
+        console.warn("No device ID available. Make sure the Spotify Web Player is initialized.")
+        return
+      }
+
       await pausePlayback()
       setIsPlaying(false)
     } catch (error) {
@@ -198,6 +230,11 @@ export function SpotifyProvider({ children }: { children: ReactNode }) {
 
   const playNextTrack = async () => {
     try {
+      if (!deviceId) {
+        console.warn("No device ID available. Make sure the Spotify Web Player is initialized.")
+        return
+      }
+
       await nextTrack()
       // We would need to poll for the current track to update currentTrack
     } catch (error) {
@@ -207,6 +244,11 @@ export function SpotifyProvider({ children }: { children: ReactNode }) {
 
   const playPreviousTrack = async () => {
     try {
+      if (!deviceId) {
+        console.warn("No device ID available. Make sure the Spotify Web Player is initialized.")
+        return
+      }
+
       await previousTrack()
       // We would need to poll for the current track to update currentTrack
     } catch (error) {
@@ -216,6 +258,11 @@ export function SpotifyProvider({ children }: { children: ReactNode }) {
 
   const playSpotifyAlbum = async (albumUri: string) => {
     try {
+      if (!deviceId) {
+        console.warn("No device ID available. Make sure the Spotify Web Player is initialized.")
+        return
+      }
+
       await spotifyFetch("/me/player/play", {
         method: "PUT",
         headers: {
@@ -223,6 +270,7 @@ export function SpotifyProvider({ children }: { children: ReactNode }) {
         },
         body: JSON.stringify({
           context_uri: albumUri,
+          device_id: deviceId,
         }),
       })
       setIsPlaying(true)
@@ -233,6 +281,11 @@ export function SpotifyProvider({ children }: { children: ReactNode }) {
 
   const playSpotifyArtistTopTracks = async (artistId: string) => {
     try {
+      if (!deviceId) {
+        console.warn("No device ID available. Make sure the Spotify Web Player is initialized.")
+        return
+      }
+
       // Get artist's top tracks
       const topTracks = await spotifyFetch(`/artists/${artistId}/top-tracks?market=from_token`)
 
@@ -244,6 +297,7 @@ export function SpotifyProvider({ children }: { children: ReactNode }) {
           },
           body: JSON.stringify({
             uris: topTracks.tracks.slice(0, 10).map((track: any) => track.uri),
+            device_id: deviceId,
           }),
         })
         setIsPlaying(true)
@@ -263,6 +317,7 @@ export function SpotifyProvider({ children }: { children: ReactNode }) {
     recentTracks,
     currentTrack,
     isPlaying,
+    deviceId,
     login,
     logout,
     fetchUserData,
